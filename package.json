@@ -1,0 +1,14 @@
+{
+  "name": "taskpulse-app",
+  "version": "1.0.0",
+  "description": "Modern Full-Stack Task & Todo Management Application",
+  "scripts": {
+    "dev": "concurrently \"npm --prefix server start\" \"npm --prefix client run dev\"",
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "start:server": "npm --prefix server start",
+    "build": "npm --prefix client run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
