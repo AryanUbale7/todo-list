@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './db.js';
 import taskRoutes from './routes/taskRoutes.js';
+import todoRoutes from './routes/todoRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 
 dotenv.config();
@@ -55,6 +56,7 @@ app.use((req, res, next) => {
 
 // API Routes
 app.use('/api', taskRoutes);
+app.use('/api', todoRoutes);
 app.use('/api', categoryRoutes);
 
 // Health Check Endpoint

@@ -1,7 +1,7 @@
 {
-  "name": "taskpulse-app",
+  "name": "functional-todo-application",
   "version": "2.0.0",
-  "description": "Modern Full-Stack Task & Todo Management Application",
+  "description": "Build a Functional To-Do Application - Full-Stack React & Node.js Solution",
   "workspaces": [
     "client",
     "server"
@@ -12,7 +12,7 @@
     "start:server": "npm --prefix server start",
     "build": "npm --prefix client install && npm --prefix client run build",
     "vercel-build": "npm --prefix client install && npm --prefix client run build",
-    "test": "npm test --prefix server"
+    "test": "npm test --prefix client && npm test --prefix server"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
