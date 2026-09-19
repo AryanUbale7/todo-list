@@ -5,9 +5,13 @@ import { TodoProvider, useTodoContext } from './context/TodoContext';
 import Header from './components/Header';
 import GamificationBar from './components/GamificationBar';
 import StatsDashboard from './components/StatsDashboard';
+import TaskStats from './components/TaskStats';
 import FilterBar from './components/FilterBar';
+import TaskFilter from './components/TaskFilter';
 import TodoInput from './components/TodoInput';
+import TaskForm from './components/TaskForm';
 import TodoList from './components/TodoList';
+import TaskList from './components/TaskList';
 import TaskItem from './components/TaskItem';
 import TaskModal from './components/TaskModal';
 import CategoryModal from './components/CategoryModal';
@@ -55,6 +59,21 @@ function TodoAppContent() {
     importTodos,
     triggerConfetti
   } = useTodoContext();
+
+  // Route awareness for /, /tasks, /search, /dashboard
+  useEffect(() => {
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('/dashboard')) {
+      setActiveView('analytics');
+    } else if (path.includes('/search')) {
+      setActiveView('list');
+      setTimeout(() => document.getElementById('global-search-input')?.focus(), 100);
+    } else if (path.includes('/tasks') || path === '/') {
+      if (activeView !== 'kanban' && activeView !== 'calendar' && activeView !== 'trash' && activeView !== 'analytics') {
+        setActiveView('list');
+      }
+    }
+  }, [setActiveView]);
 
   // Theme state
   const [darkMode, setDarkMode] = useState(() => {
@@ -198,14 +217,14 @@ function TodoAppContent() {
           />
         ) : (
           <>
-            {/* Stats Dashboard */}
-            <StatsDashboard
+            {/* Task Statistics Summary */}
+            <TaskStats
               stats={stats}
               currentFilter={filter}
               onSelectFilter={(newFilter) => setFilter((prev) => ({ ...prev, ...newFilter }))}
             />
 
-            {/* Quick Inline Todo Input */}
+            {/* Quick Inline Task Creation */}
             <TodoInput
               onAddTodo={addTodo}
               onOpenDetailedModal={() => {
@@ -214,7 +233,7 @@ function TodoAppContent() {
               }}
             />
 
-            {/* Filter and Category Bar */}
+            {/* Task Search & Filter Controls */}
             <FilterBar
               filter={filter}
               setFilter={setFilter}
@@ -222,7 +241,7 @@ function TodoAppContent() {
               onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
             />
 
-            {/* Main View: Kanban or List */}
+            {/* Main View: Kanban or Task List */}
             {activeView === 'kanban' ? (
               <KanbanBoard
                 tasks={todos}
@@ -243,17 +262,18 @@ function TodoAppContent() {
                 }}
               />
             ) : (
-              /* List View */
-              <section className="space-y-3" role="region" aria-label="Todo List View">
+              /* Task List View */
+              <section className="space-y-3" role="region" aria-label="Task List View">
                 <div className="flex items-center justify-between px-1 mb-2">
                   <div className="flex items-center gap-2">
                     <h2 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      To-Do List ({todos.length})
+                      Tasks ({todos.length})
                     </h2>
                     {stats.completed > 0 && (
                       <button
                         onClick={clearCompleted}
                         className="text-xs text-rose-500 hover:underline font-semibold"
+                        aria-label="Clear all completed tasks"
                       >
                         Clear Completed ({stats.completed})
                       </button>
@@ -270,10 +290,10 @@ function TodoAppContent() {
                 {loading && todos.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20">
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin mb-3" />
-                    <p className="text-sm text-slate-500">Loading your to-do items...</p>
+                    <p className="text-sm text-slate-500">Loading your tasks...</p>
                   </div>
                 ) : (
-                  <TodoList
+                  <TaskList
                     todos={todos}
                     onToggle={toggleTodo}
                     onEdit={(t) => {
@@ -344,20 +364,20 @@ function TodoAppContent() {
         onLogTime={handleLogFocusTime}
       />
 
-      {/* Floating Action Button for Mobile */}
+      {/* Floating Action Button */}
       <button
         onClick={() => {
           setTaskToEdit(null);
           setIsTaskModalOpen(true);
         }}
         className="sm:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-brand-600 to-indigo-600 text-white shadow-xl shadow-brand-500/40 flex items-center justify-center active:scale-95"
-        title="Add Todo"
-        aria-label="Add Todo"
+        title="Add Task"
+        aria-label="Add Task"
       >
         <Plus className="w-6 h-6 stroke-[3]" />
       </button>
 
-      {/* Toast Notification */}
+      {/* Toast Alert Banner */}
       <Toast
         message={toast.message}
         type={toast.type}
