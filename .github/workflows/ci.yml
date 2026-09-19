@@ -1,0 +1,39 @@
+name: TaskPulse Continuous Integration (CI)
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [ 18.x, 20.x ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm install
+          npm install --prefix server
+          npm install --prefix client
+
+      - name: Run Backend Automated Tests
+        run: |
+          npm test --prefix server
+
+      - name: Build Frontend Application
+        run: |
+          npm run build --prefix client

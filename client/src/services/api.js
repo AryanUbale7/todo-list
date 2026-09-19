@@ -20,7 +20,7 @@ async function fetchJson(endpoint, options = {}) {
 }
 
 export const api = {
-  // Tasks
+  // Tasks CRUD & Queries
   async getTasks(params = {}) {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -62,8 +62,47 @@ export const api = {
     });
   },
 
+  async restoreTask(id) {
+    return fetchJson(`/tasks/${id}/restore`, {
+      method: 'PATCH',
+    });
+  },
+
+  async permanentDelete(id) {
+    return fetchJson(`/tasks/${id}/permanent`, {
+      method: 'DELETE',
+    });
+  },
+
+  async bulkAction(action, taskIds) {
+    return fetchJson('/tasks/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ action, taskIds }),
+    });
+  },
+
+  // AI & Smart Services
+  async generateAiSubtasks(title, description = '') {
+    return fetchJson('/tasks/ai-subtasks', {
+      method: 'POST',
+      body: JSON.stringify({ title, description }),
+    });
+  },
+
+  async parseNlp(text) {
+    return fetchJson('/tasks/parse-nlp', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+  },
+
+  // Stats & Activity
   async getStats() {
     return fetchJson('/tasks/stats');
+  },
+
+  async getActivityLogs() {
+    return fetchJson('/tasks/activity');
   },
 
   // Categories

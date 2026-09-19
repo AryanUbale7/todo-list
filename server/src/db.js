@@ -58,7 +58,9 @@ export const dbQuery = {
   }
 };
 
-// Initialize schema and seed data
+/**
+ * Initialize SQLite Database Schema, Indexes, and Default Seeds
+ */
 export async function initializeDatabase() {
   await dbQuery.exec(`
     PRAGMA foreign_keys = ON;
@@ -80,14 +82,57 @@ export async function initializeDatabase() {
       status TEXT CHECK(status IN ('pending', 'in_progress', 'completed')) DEFAULT 'pending',
       due_date TEXT DEFAULT NULL,
       subtasks TEXT DEFAULT '[]',
+      recurring TEXT CHECK(recurring IN ('none', 'daily', 'weekly', 'monthly')) DEFAULT 'none',
+      estimated_minutes INTEGER DEFAULT 0,
+      time_spent_seconds INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       completed_at DATETIME DEFAULT NULL,
+      deleted_at DATETIME DEFAULT NULL,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id INTEGER,
+      action TEXT NOT NULL,
+      details TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
-  // Check if categories need seeding
+  // Migrate existing schema if columns are missing
+  try {
+    const tableInfo = await dbQuery.all("PRAGMA table_info(tasks)");
+    const columnNames = tableInfo.map(c => c.name);
+
+    if (!columnNames.includes('recurring')) {
+      await dbQuery.exec("ALTER TABLE tasks ADD COLUMN recurring TEXT DEFAULT 'none'");
+    }
+    if (!columnNames.includes('estimated_minutes')) {
+      await dbQuery.exec("ALTER TABLE tasks ADD COLUMN estimated_minutes INTEGER DEFAULT 0");
+    }
+    if (!columnNames.includes('time_spent_seconds')) {
+      await dbQuery.exec("ALTER TABLE tasks ADD COLUMN time_spent_seconds INTEGER DEFAULT 0");
+    }
+    if (!columnNames.includes('deleted_at')) {
+      await dbQuery.exec("ALTER TABLE tasks ADD COLUMN deleted_at DATETIME DEFAULT NULL");
+    }
+  } catch (migErr) {
+    console.warn('Migration notice:', migErr.message);
+  }
+
+  // Create performance indexes after schema migration
+  await dbQuery.exec(`
+    CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+    CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+    CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+    CREATE INDEX IF NOT EXISTS idx_tasks_deleted_at ON tasks(deleted_at);
+    CREATE INDEX IF NOT EXISTS idx_activity_created_at ON activity_logs(created_at);
+  `);
+
+  // Seed default categories if empty
   const existingCategories = await dbQuery.all('SELECT COUNT(*) as count FROM categories');
   if (existingCategories[0].count === 0) {
     console.log('Seeding initial categories...');
@@ -107,8 +152,8 @@ export async function initializeDatabase() {
     }
   }
 
-  // Check if tasks need seeding
-  const existingTasks = await dbQuery.all('SELECT COUNT(*) as count FROM tasks');
+  // Seed initial sample tasks if empty
+  const existingTasks = await dbQuery.all('SELECT COUNT(*) as count FROM tasks WHERE deleted_at IS NULL');
   if (existingTasks[0].count === 0) {
     console.log('Seeding initial sample tasks...');
     const today = new Date().toISOString().split('T')[0];
@@ -116,12 +161,13 @@ export async function initializeDatabase() {
 
     const sampleTasks = [
       {
-        title: 'Review quarterly project deliverables',
-        description: 'Prepare executive summary slides and review team sprint velocity.',
+        title: 'Review quarterly product strategy & OKRs',
+        description: 'Prepare executive summary slides and review team velocity metrics.',
         category_id: 1, // Work
         priority: 'high',
         status: 'pending',
         due_date: today,
+        estimated_minutes: 45,
         subtasks: JSON.stringify([
           { id: '1', title: 'Gather sprint metrics', completed: true },
           { id: '2', title: 'Draft presentation slides', completed: false },
@@ -129,12 +175,13 @@ export async function initializeDatabase() {
         ])
       },
       {
-        title: 'Complete daily 30-minute cardio workout',
+        title: 'Complete daily 30-minute cardio & strength workout',
         description: 'Morning running session or cycling.',
         category_id: 4, // Health
         priority: 'medium',
         status: 'completed',
         due_date: today,
+        estimated_minutes: 30,
         completed_at: new Date().toISOString(),
         subtasks: JSON.stringify([
           { id: '1', title: '10 min warm-up', completed: true },
@@ -142,32 +189,34 @@ export async function initializeDatabase() {
         ])
       },
       {
-        title: 'Design high-converting landing page mockups',
-        description: 'Create interactive Figma wireframes and responsive mobile layouts.',
+        title: 'Design responsive UI components in Figma',
+        description: 'Create interactive dark/light wireframes and mobile layouts.',
         category_id: 5, // Projects
         priority: 'urgent',
         status: 'in_progress',
         due_date: tomorrow,
+        estimated_minutes: 60,
         subtasks: JSON.stringify([
           { id: '1', title: 'Hero section typography', completed: true },
           { id: '2', title: 'Feature grid component', completed: false }
         ])
       },
       {
-        title: 'Buy groceries & weekly meal prep items',
-        description: 'Fresh vegetables, oats, almond milk, and Greek yogurt.',
+        title: 'Buy fresh groceries & weekly meal prep ingredients',
+        description: 'Organic vegetables, oats, almond milk, and Greek yogurt.',
         category_id: 3, // Shopping
         priority: 'low',
         status: 'pending',
         due_date: null,
+        estimated_minutes: 25,
         subtasks: JSON.stringify([])
       }
     ];
 
     for (const task of sampleTasks) {
-      await dbQuery.run(
-        `INSERT INTO tasks (title, description, category_id, priority, status, due_date, subtasks, completed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      const res = await dbQuery.run(
+        `INSERT INTO tasks (title, description, category_id, priority, status, due_date, estimated_minutes, subtasks, completed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           task.title,
           task.description,
@@ -175,14 +224,19 @@ export async function initializeDatabase() {
           task.priority,
           task.status,
           task.due_date,
+          task.estimated_minutes || 0,
           task.subtasks,
           task.completed_at || null
         ]
       );
+      await dbQuery.run(
+        'INSERT INTO activity_logs (task_id, action, details) VALUES (?, ?, ?)',
+        [res.lastID, 'created', `Created task "${task.title}"`]
+      );
     }
   }
 
-  console.log('Database initialization & seeding complete.');
+  console.log('Database initialization & schema setup complete.');
 }
 
 export default db;
