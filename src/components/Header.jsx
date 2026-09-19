@@ -121,7 +121,7 @@ export default function Header({
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-brand-700 to-purple-600 dark:from-white dark:via-brand-300 dark:to-purple-300 bg-clip-text text-transparent">
-                TaskPulse
+                FocusList
               </span>
               <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 rounded border border-brand-200 dark:border-brand-800">
                 v2.0

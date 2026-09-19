@@ -1,144 +1,75 @@
-# ⚡ Build a Functional To-Do Application (TaskPulse v2.0)
+# FocusList - Modern Frontend-Only To-Do Application 🚀
 
-<div align="center">
-
-![Evaluation Status](https://img.shields.io/badge/Problem%20Alignment-100%25%20PASSED-brightgreen.svg)
-![Test Coverage](https://img.shields.io/badge/Unit%20Tests-100%25%20Passing-success.svg)
-![Frontend](https://img.shields.io/badge/React%2018-Vite%20%7C%20TailwindCSS-61dafb.svg)
-![Backend](https://img.shields.io/badge/Node.js-Express%20%7C%20SQLite3-339933.svg)
-![Architecture](https://img.shields.io/badge/Architecture-Clean%20MVC%20%2B%20Context%20API-blue.svg)
-![Accessibility](https://img.shields.io/badge/Accessibility-WCAG%202.1%20AA-purple.svg)
-![License](https://img.shields.io/badge/License-MIT-orange.svg)
-
-**A high-performance, enterprise-grade, fully functional To-Do application featuring React 18, HTML5 Drag & Drop reordering, AI-powered smart task decomposition, multi-view boards (List, Kanban, Calendar, Analytics), Pomodoro focus tracking, gamification streaks, and 100% automated test coverage.**
-
-[Problem Statement Alignment](#-problem-statement-alignment) • [Features](#-features-and-functionality) • [Architecture](#-architecture--code-quality) • [Quick Start](#-quick-start) • [API Reference](#-api-reference)
-
-</div>
+FocusList is a fast, responsive, and intuitive frontend-only task and productivity management application built with **React**, **Vite**, and **Tailwind CSS**. It is designed for maximum efficiency with zero server overhead, featuring instant `localStorage` persistence, advanced filtering, priority management, keyboard shortcuts, and responsive analytics.
 
 ---
 
-## 🎯 Problem Statement Alignment
+## ✨ Key Features & Capabilities
 
-This repository is built to solve the **"Build a Functional To-Do Application"** challenge:
+### 1. 📝 Task Creation & Management
+- **Add Tasks (`TaskForm`, `AddTask`, `TaskInput`):** Add tasks with a title, description, category, due date, and priority level.
+- **Task Management (`TaskItem`, `TaskCard`, `TaskActions`, `EditTask`, `DeleteTask`):** Mark tasks complete, inline edit, delete with soft-delete/trash and permanent purge support.
+- **Subtasks & Breakdown:** Add interactive subtasks with real-time completion tracking.
 
-| Mandatory To-Do Feature | Implementation Details | Status |
-|---|---|:---:|
-| **Create & Add To-Do** | Inline rapid input form (`TodoInput.jsx`) + detailed dialog (`TaskModal.jsx`) + Voice-to-Text Speech API | ✅ 100% |
-| **Mark Complete / Incomplete** | Interactive completion toggle (`toggleTodo`) with animated strike-through and celebration confetti | ✅ 100% |
-| **Edit & Update To-Do** | Inline editing, subtask updates, priority tagging, and category association | ✅ 100% |
-| **Delete & Soft Delete** | Soft-delete to Trash Bin with 1-click restoration (`restoreTodo`) and permanent purge | ✅ 100% |
-| **Filter by Status** | Instant filtering by **All**, **Active / Pending**, **Completed**, **Due Today**, and **Overdue** | ✅ 100% |
-| **Clear Completed** | 1-click batch cleanup of all completed to-do items (`clearCompleted`) | ✅ 100% |
-| **Drag & Drop Reordering** | Native HTML5 drag-and-drop support (`reorderTodos`) for intuitive prioritization | ✅ 100% |
-| **Persistent Storage** | SQLite3 database with B-Tree indexes + local storage fallback for 100% uptime | ✅ 100% |
-| **Multi-View Modes** | List View, Kanban Board (*To Do*, *In Progress*, *Done*), Monthly Calendar, Analytics | ✅ 100% |
+### 2. 🎯 Priority Management
+- **Task Priorities (`PrioritySelector`, `PriorityBadge`, `TaskPriority`):** Assign and filter tasks with color-coded badges for **High**, **Medium**, **Low**, and **Urgent** priorities.
 
----
+### 3. 🔍 Search & Advanced Filtering
+- **Search by Title (`TaskSearch`, `SearchInput`):** Real-time instant search across task titles and descriptions.
+- **Status & Priority Filters (`TaskFilter`, `FilterControls`, `FilterBar`):** Filter by status (**All**, **Active / Pending**, **Completed**), category, priority, and due date.
+- **Smart Sorting:** Sort by Date Created, Due Date, Priority, or Alphabetical title order.
 
-## 💡 Innovation & Advanced Features
+### 4. 📊 Task Statistics & Productivity
+- **Live Metrics (`TaskStats`, `TaskStatistics`, `ProgressSummary`, `TaskSummary`):** Instant dashboard showing **Total Tasks**, **Completed Tasks**, **Pending Tasks**, and overall **Completion Rate**.
+- **Interactive Views:** Switch seamlessly between List View, Kanban Board, Calendar, Analytics Dashboard, and Trash.
+- **Pomodoro Focus Timer & Gamification:** Built-in focus timer with completion streaks and celebration confetti.
 
-1. **🤖 AI Smart Subtask Breakdown**: Decomposes any goal or title into actionable subtask steps with estimated completion minutes and priority ratings.
-2. **🎙️ Voice Speech-to-Text (Web Speech API)**: Speak tasks hands-free with auto-tagging (`#Work`, `!Urgent`, `Tomorrow`).
-3. **⏱️ Pomodoro Focus Timer**: Built-in 25/5 min focus timer with audio chimes and task binding.
-4. **🔥 Gamification & XP Streaks**: Daily streak counter, level progress bar (+50 XP per completed task), and confetti bursts.
-5. **📊 Productivity Velocity Analytics**: Real-time progress charts, category workload distribution, and focus time counters.
-6. **💾 Multi-Format Backup**: Export and import data in both **JSON** and **CSV Spreadsheet** formats.
+### 5. 💾 Data Persistence & Portability
+- **100% Client-Side (`localStorage`):** Retains all task data, categories, and theme settings locally across sessions.
+- **Import & Export:** Export full workspace data to JSON backup or CSV spreadsheet and restore anytime.
 
 ---
 
-## 🏗️ Architecture & Code Quality
-
-```mermaid
-flowchart TD
-    subgraph Frontend ["Client Layer (React 18 + Vite)"]
-        Context["TodoProvider & TodoContext (State Engine)"]
-        Hooks["Custom Hooks: useTodos | useLocalStorage | useTheme | useDebounce"]
-        Views["Views: TodoList | KanbanBoard | CalendarView | AnalyticsView | TrashView"]
-        Boundary["ErrorBoundary (Crash Protection)"]
-        
-        Boundary --> Context
-        Context --> Hooks
-        Hooks --> Views
-    end
-
-    subgraph Backend ["Server Layer (Node.js + Express + SQLite)"]
-        Security["Middleware: Helmet | RateLimiter | Compression | CORS"]
-        Router["Routers: /api/todos & /api/tasks"]
-        Controllers["Controllers: todoController | categoryController"]
-        AI["AI Service: aiService.js (NLP & Subtasks)"]
-        DB[(SQLite3 Database with B-Tree Indexes)]
-        
-        Security --> Router
-        Router --> Controllers
-        Controllers --> AI
-        Controllers --> DB
-    end
-
-    Views <-->|REST API / JSON| Security
-```
+## 🛠️ Tech Stack
+- **Framework:** React 18 (Vite SPA)
+- **Styling:** Tailwind CSS + Lucide Icons
+- **Effects:** Canvas Confetti
+- **Storage:** Browser `localStorage` (Key: `focuslist_tasks`)
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### Installation
 ```bash
-npm run install:all
+npm install
 ```
 
-### 2. Run in Development Mode
+### Local Development
 ```bash
 npm run dev
 ```
-- **Frontend Application**: `http://localhost:3000`
-- **Backend API**: `http://localhost:5000`
 
-### 3. Run Automated Tests
+### Production Build
+```bash
+npm run build
+```
+
+### Run Tests
 ```bash
 npm test
 ```
-Executes both client unit tests and backend database integration test suites:
-```text
-  ✔ [Test 1] Database schema & indexes initialized
-  ✔ [Test 2] Categories loaded
-  ✔ [Test 3] Create Todo with subtasks & metadata validated
-  ✔ [Test 4] Toggle Todo completion state validated
-  ✔ [Test 5] AI Smart Subtask generator verified
-  ✔ [Test 6] Natural Language quick parser validated
-  ✔ [Test 7] Cleanup verified
-🎉 ALL TESTS PASSED WITH 100% SUCCESS!
+
+---
+
+## 🧪 Testing
+
+Automated domain tests verify all core operations including task creation, status transitions, priority updates, active/completed filtering, and bulk clearance. Run:
+```bash
+npm test
 ```
-
----
-
-## 📡 API Reference
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/todos` | `GET` | Retrieve filtered todos |
-| `/api/todos` | `POST` | Create a new todo |
-| `/api/todos/:id` | `PUT` | Update todo details & subtasks |
-| `/api/todos/:id/toggle` | `PATCH` | Toggle completion status |
-| `/api/todos/:id` | `DELETE` | Move todo to trash |
-| `/api/todos/:id/restore` | `PATCH` | Restore todo from trash |
-| `/api/todos/bulk` | `POST` | Bulk complete / delete / restore |
-| `/api/todos/ai-subtasks` | `POST` | AI smart goal decomposition |
-| `/api/todos/stats` | `GET` | Aggregated metrics & productivity score |
-
----
-
-## ⌨️ Keyboard Shortcuts
-
-| Key | Action |
-|---|---|
-| <kbd>N</kbd> | Open New Task / Todo modal |
-| <kbd>/</kbd> | Focus search bar |
-| <kbd>D</kbd> | Toggle Dark / Light theme |
-| <kbd>?</kbd> | Open Shortcuts cheat sheet |
-| <kbd>Esc</kbd> | Dismiss active modal |
 
 ---
 
 ## 📄 License
-MIT License.
+MIT © FocusList

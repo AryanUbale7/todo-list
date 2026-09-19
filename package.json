@@ -1,20 +1,31 @@
 {
-  "name": "functional-todo-application",
-  "version": "2.0.0",
-  "description": "Build a Functional To-Do Application - Full-Stack React & Node.js Solution",
-  "workspaces": [
-    "client",
-    "server"
-  ],
+  "name": "focuslist",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "FocusList - Simple, functional, and modern frontend-only To-Do application",
   "scripts": {
-    "dev": "concurrently \"npm --prefix server start\" \"npm --prefix client run dev\"",
-    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
-    "start:server": "npm --prefix server start",
-    "build": "npm --prefix client install && npm --prefix client run build",
-    "vercel-build": "npm --prefix client install && npm --prefix client run build",
-    "test": "npm test --prefix client && npm test --prefix server"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node src/__tests__/TodoList.test.js"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.395.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.4",
+    "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "vite": "^5.3.1"
   }
 }

@@ -1,9 +1,9 @@
 const BASE_URL = '/api';
 
-// Fallback LocalStorage data store for static hosts (e.g., Vercel static deployments)
-const STORAGE_KEY_TASKS = 'taskpulse_local_tasks';
-const STORAGE_KEY_CATEGORIES = 'taskpulse_local_categories';
-const STORAGE_KEY_ACTIVITY = 'taskpulse_local_activity';
+// LocalStorage data store for FocusList frontend-only application
+const STORAGE_KEY_TASKS = 'focuslist_tasks';
+const STORAGE_KEY_CATEGORIES = 'focuslist_categories';
+const STORAGE_KEY_ACTIVITY = 'focuslist_activity';
 
 const defaultCategories = [
   { id: 1, name: 'Work', color: '#3b82f6', icon: 'briefcase', task_count: 1 },
