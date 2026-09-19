@@ -1,114 +1,122 @@
-# 🏛️ TaskPulse Architecture & Technical Design
+# 🏛️ FocusList Architecture & System Design Document
 
-This document details the architectural blueprint, design principles, database schema, security provisions, and data flows of **TaskPulse Enterprise v2.0**.
+This document outlines the technical architecture, design patterns, state management models, component hierarchy, accessibility compliance, and performance strategies of **FocusList Enterprise**.
 
 ---
 
-## 🏗️ 1. High-Level System Architecture
+## 📐 1. System Overview & Layered Architecture
+
+FocusList is engineered as a **100% Client-Side Single Page Application (SPA)** with zero server dependencies, guaranteeing instant response times, complete offline capability, and client-side data sovereignty.
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Frontend Layer (React 18 + Vite + Tailwind CSS)"]
-        UI[App UI & Multi-View Engine]
-        Views["Views: List | Kanban | Calendar | Analytics | Trash"]
-        State[State Management & API Client]
-        A11y[WCAG 2.1 AA Accessibility Engine]
-        NLPVoice["Voice Speech-to-Text & Quick NLP"]
-        Pomo[Pomodoro Focus Timer]
-        Confetti[Gamification & Confetti Engine]
+    subgraph PresentationLayer ["1. Presentation & UI Layer (React 18 + Tailwind CSS)"]
+        App["App.jsx (Core Shell & Layout)"]
+        Header["Header.jsx (Navigation, Global Search, Views)"]
+        Stats["TaskStats.jsx (Real-time Metrics Dashboard)"]
+        Filters["FilterBar.jsx (Multi-Criteria Filter Engine)"]
+        Views["Multi-View System: List | Kanban | Calendar | Analytics | Trash"]
+        Input["TodoInput.jsx & TaskForm.jsx (Creation & Quick NLP)"]
+        Modals["Modals: TaskModal | CategoryModal | ShortcutsModal | PomodoroTimer"]
         
-        UI --> Views
-        Views --> State
-        NLPVoice --> State
-        Pomo --> State
+        App --> Header
+        App --> Stats
+        App --> Filters
+        App --> Views
+        App --> Input
+        App --> Modals
     end
 
-    subgraph Server ["Backend Layer (Node.js + Express)"]
-        MW["Middlewares: Helmet | Compression | RateLimiter | CORS"]
-        Routes["API Router: /api/tasks | /api/categories"]
-        Controllers["Controllers (TaskController, CategoryController)"]
-        Services["Services (AIService, AnalyticsService)"]
+    subgraph StateLayer ["2. Reactive State & Context Layer"]
+        Context["TodoContext.jsx (Global Application Store)"]
+        Hooks["Custom Hooks: useTodos | useTaskStats | useLocalStorage | useDebounce | useTheme"]
         
-        MW --> Routes
-        Routes --> Controllers
-        Controllers --> Services
+        Views <--> Context
+        Input <--> Context
+        Modals <--> Context
+        Context <--> Hooks
     end
 
-    subgraph Storage ["Persistence Layer (SQLite Database Engine)"]
-        DB[(SQLite3 DB: taskpulse.sqlite)]
-        Idx["B-Tree Indexes (status, priority, category, due_date, deleted_at)"]
-        Logs[Activity Audit Trail]
+    subgraph DomainLayer ["3. Domain Logic & Utilities Layer"]
+        NLP["nlpParser.js (NLP Extraction & Keyword Tokenizer)"]
+        Validators["validators.js (Schema & Input Validation)"]
+        Formatters["formatters.js (Date, Relative Time, Duration)"]
         
-        DB --- Idx
-        DB --- Logs
+        Context --> NLP
+        Context --> Validators
+        Views --> Formatters
     end
 
-    State <-->|JSON REST API /api/v1| MW
-    Services <-->|Parameterized Queries & Connection Pool| DB
+    subgraph PersistenceLayer ["4. Client-Side Persistence Layer"]
+        StorageService["storageService.js (Repository Pattern & Storage Abstraction)"]
+        LocalStorage[("Browser LocalStorage: focuslist_tasks | focuslist_categories | focuslist_activity")]
+        
+        Context <--> StorageService
+        StorageService <--> LocalStorage
+    end
 ```
 
 ---
 
-## 📊 2. Database Entity-Relationship (ER) Schema
+## 🔄 2. State Lifecycle & Data Flow
 
 ```mermaid
-erDiagram
-    CATEGORIES ||--o{ TASKS : classifies
-    TASKS ||--o{ ACTIVITY_LOGS : records
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as Presentation (TaskForm / TodoInput)
+    participant Context as TodoContext (Store)
+    participant Validator as validators.js
+    participant Service as storageService.js
+    participant Storage as Browser LocalStorage
 
-    CATEGORIES {
-        int id PK
-        string name UK
-        string color
-        string icon
-        datetime created_at
-    }
-
-    TASKS {
-        int id PK
-        string title
-        string description
-        int category_id FK
-        string priority
-        string status
-        string due_date
-        string subtasks
-        string recurring
-        int estimated_minutes
-        int time_spent_seconds
-        datetime created_at
-        datetime updated_at
-        datetime completed_at
-        datetime deleted_at
-    }
-
-    ACTIVITY_LOGS {
-        int id PK
-        int task_id FK
-        string action
-        string details
-        datetime created_at
-    }
+    User->>UI: Types Task + Sets Priority / Category
+    UI->>Validator: validateTaskPayload(payload)
+    Validator-->>UI: { isValid: true }
+    UI->>Context: addTodo(validatedTask)
+    Context->>Service: saveTasks(newTaskList)
+    Service->>Storage: localStorage.setItem('focuslist_tasks', json)
+    Storage-->>Service: Acknowledged
+    Context-->>UI: State Updated (Auto-derives Stats & Re-renders via React.memo)
+    UI-->>User: Visual Confirmation + Confetti Animation
 ```
 
 ---
 
-## 🛡️ 3. Security, Scalability & Resilience
+## 🧩 3. Component Hierarchy & Dependency Map
 
-| Pillar | Implementation Details |
-|---|---|
-| **Security Headers** | `helmet` protects against XSS, clickjacking, MIME-sniffing, and SSL downgrade. |
-| **Rate Limiting** | `express-rate-limit` mitigates brute-force, scrape, and denial-of-service attempts (1000 req/15m). |
-| **SQL Injection Defense** | 100% Parameterized queries with prepared statements through SQLite driver wrappers. |
-| **Payload Compression** | Gzip & Brotli HTTP payload compression with `compression`. |
-| **Database Performance** | Indexed lookups on query filters (`status`, `priority`, `category_id`, `due_date`, `deleted_at`). |
-| **Soft Deletes & Recovery** | Tasks use `deleted_at` timestamp enabling instant recovery from the Trash Bin. |
+- **`App.jsx`**: Top-level coordinator, route resolution, dark/light theme management, error boundary boundary.
+  - **`Header.jsx`**: Global branding, full-text search input with speech-to-text voice recognition, view tabs, backup import/export triggers.
+  - **`GamificationBar.jsx`**: Productivity streak metrics and daily completion goals.
+  - **`TaskStats.jsx` / `TaskStatistics.jsx`**: Memoized aggregate dashboard (`Total Tasks`, `Completed Tasks`, `Pending Tasks`, `Completion Rate`).
+  - **`TodoInput.jsx` / `TaskForm.jsx`**: Fast inline input with NLP tag expansion (`!urgent`, `#Work`, `today`).
+  - **`FilterBar.jsx` / `TaskFilter.jsx`**: Status tabs (`All`, `Active`, `Completed`), category chips, priority selectors, and date ranges.
+  - **`TaskList.jsx` / `TodoList.jsx`**: Virtualizable drag-and-drop task item container.
+    - **`TaskItem.jsx` / `TodoItem.jsx`**: Memoized task card with subtask checklist, priority badges, and inline actions.
+  - **`KanbanBoard.jsx`**: Visual board view categorized by status columns.
+  - **`CalendarView.jsx`**: Monthly calendar agenda view.
+  - **`AnalyticsView.jsx`**: Visual completion metrics, category distribution, and time tracking.
+  - **`TrashView.jsx`**: Soft-delete archive with instant restore or permanent purge.
+  - **`PomodoroTimer.jsx`**: Focus work interval timer linked to task time tracking.
 
 ---
 
-## 🤖 4. AI & NLP Decomposition Engine
+## ♿ 4. Accessibility & WCAG 2.1 AA Compliance
 
-The integrated **AI Subtask Generator (`aiService.js`)** performs automated goal decomposition:
-- **Heuristic Pattern Matching**: Detects actionable verbs (e.g. *Deploy, Design, Study, Workout, Grocery*) and breaks them down into ordered subtasks.
-- **Time Estimation**: Automatically estimates focus duration per subtask.
-- **Natural Language Parsing**: Analyzes strings like `"Submit audit slides by tomorrow !urgent #Work"` into structured fields.
+| Accessibility Feature | Implementation Standard |
+|---|---|
+| **Semantic Landmarks** | Strict usage of `<header>`, `<main>`, `<nav>`, `<section>`, `<article>`, and `role="region"`. |
+| **ARIA Annotations** | Dynamic `aria-label`, `aria-checked`, `aria-expanded`, `aria-live="polite"`, `aria-modal="true"`. |
+| **Keyboard Navigability** | Full tab-stop sequence, focus rings (`focus-visible:ring-2`), and `Enter`/`Space`/`Escape` key handlers. |
+| **Color Contrast** | Minimum 4.5:1 text-to-background contrast ratio across dark and light modes. |
+| **Screen Reader Friendly** | Visual icons accompanied by descriptive labels or `.sr-only` utility wrappers. |
+
+---
+
+## ⚡ 5. Performance Optimization Strategy
+
+1. **Code-Splitting via `React.lazy` & `Suspense`**: Heavy views (`AnalyticsView`, `CalendarView`, `KanbanBoard`, `PomodoroTimer`) load dynamically on demand.
+2. **Component Memoization (`React.memo`)**: Eliminates redundant re-renders across list items, stats widgets, and filter bars.
+3. **Reactive Computation (`useMemo`)**: Aggregates and filter results compute in $O(N)$ only when underlying arrays or queries change.
+4. **Debounced Search (`useDebounce`)**: Prevents UI stutter during high-velocity keyboard typing.
+5. **Optimized Asset Bundling**: Rollup manual chunking isolates `vendor` (React/ReactDOM), `icons` (Lucide), and `effects` (Canvas Confetti).

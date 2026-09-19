@@ -1,131 +1,89 @@
-# 📡 TaskPulse REST API Specification
+# 📖 FocusList Client API & Storage Schema Specification
 
-TaskPulse exposes a RESTful JSON API on port `5000` (prefixed with `/api`).
+FocusList operates on a clean, repository-pattern client-side storage architecture. This specification outlines all programmatic interfaces, data contracts, and LocalStorage keys.
 
 ---
 
-## Base URL
-```text
-http://localhost:5000/api
+## 🔑 Storage Schema & Keys
+
+| Storage Key | Type | Description |
+|---|---|---|
+| `focuslist_tasks` | `Array<Task>` | Collection of all active and soft-deleted tasks |
+| `focuslist_categories` | `Array<Category>` | User defined tags/categories |
+| `focuslist_activity` | `Array<ActivityLog>` | Audit trail of task operations |
+| `focuslist_theme` | `string` (`"dark"` \| `"light"`) | User theme preference |
+
+---
+
+## 📋 Data Entity Contracts
+
+### 1. `Task` Entity
+```typescript
+interface Task {
+  id: number | string;
+  title: string;
+  description?: string;
+  category_id?: number | null;
+  category_name?: string | null;
+  category_color?: string | null;
+  category_icon?: string | null;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'pending' | 'in_progress' | 'completed';
+  due_date?: string | null; // ISO 8601 YYYY-MM-DD
+  recurring?: 'none' | 'daily' | 'weekly' | 'monthly';
+  estimated_minutes?: number;
+  time_spent_seconds?: number;
+  created_at: string; // ISO 8601 UTC timestamp
+  updated_at?: string;
+  completed_at?: string | null;
+  deleted_at?: string | null; // Nullable for soft-delete
+  subtasks?: Array<{
+    id: string;
+    title: string;
+    completed: boolean;
+  }>;
+}
+```
+
+### 2. `Category` Entity
+```typescript
+interface Category {
+  id: number;
+  name: string;
+  color: string; // Hex color code e.g. #3b82f6
+  icon: string; // Icon identifier key e.g. "briefcase"
+  task_count?: number;
+}
 ```
 
 ---
 
-## Endpoints Reference
+## 🛠️ Storage Service Methods (`storageService.js`)
 
-### 1. Health Check
-- **`GET /api/health`**
-  - **Response `200 OK`**:
-    ```json
-    {
-      "status": "healthy",
-      "uptime": 124.5,
-      "timestamp": "2026-09-19T10:45:00.000Z",
-      "service": "TaskPulse Enterprise API v2.0"
-    }
-    ```
+### `getTasks(): Array<Task>`
+Retrieves all persisted tasks from `localStorage` with fallback to default seeded tasks if empty.
 
----
+### `saveTasks(tasks: Array<Task>): boolean`
+Serializes and persists the task list to `localStorage`.
 
-### 2. Task Endpoints
+### `getCategories(): Array<Category>`
+Retrieves all categories.
 
-#### `GET /api/tasks`
-Fetch tasks matching filter criteria.
-- **Query Parameters:**
-  - `search` (string): Keyword matching in title or description.
-  - `status` (string): `all` | `pending` | `in_progress` | `completed`.
-  - `category_id` (number): Filter by category ID.
-  - `priority` (string): `all` | `low` | `medium` | `high` | `urgent`.
-  - `timeframe` (string): `all` | `today` | `upcoming` | `overdue`.
-  - `sort_by` (string): `created_at` | `due_date` | `priority` | `title`.
-  - `order` (string): `asc` | `desc`.
-  - `include_deleted` (boolean): `true` to fetch trash items.
+### `saveCategories(categories: Array<Category>): boolean`
+Persists categories.
 
-#### `POST /api/tasks`
-Create a new task.
-- **Request Body:**
-  ```json
-  {
-    "title": "Launch Marketing Campaign",
-    "description": "Coordinate social ads and email blasts",
-    "category_id": 1,
-    "priority": "high",
-    "status": "pending",
-    "due_date": "2026-09-25",
-    "recurring": "none",
-    "estimated_minutes": 45,
-    "subtasks": [
-      { "id": "1", "title": "Finalize copy", "completed": false }
-    ]
-  }
-  ```
-
-#### `PUT /api/tasks/:id`
-Update an existing task.
-
-#### `PATCH /api/tasks/:id/toggle`
-Toggle task completion status between `completed` and `pending`.
-
-#### `PATCH /api/tasks/:id/restore`
-Restore a soft-deleted task from trash.
-
-#### `DELETE /api/tasks/:id`
-Soft-delete task (move to Trash Bin).
-
-#### `DELETE /api/tasks/:id/permanent`
-Permanently delete task.
-
-#### `POST /api/tasks/bulk`
-Perform bulk operations on multiple tasks.
-- **Request Body:**
-  ```json
-  {
-    "action": "complete" | "delete" | "restore" | "permanent_delete",
-    "taskIds": [1, 2, 3]
-  }
-  ```
+### `logActivity(action: string, details: string): ActivityLog`
+Appends an action event to the client-side audit history.
 
 ---
 
-### 3. AI & Smart Assistant Endpoints
+## 🔍 Filter & Query Parameters
 
-#### `POST /api/tasks/ai-subtasks`
-Intelligently decompose a task goal into subtasks.
-- **Request Body:**
-  ```json
-  {
-    "title": "Deploy microservice to Kubernetes",
-    "description": "Production cluster release"
-  }
-  ```
-- **Response `200 OK`**:
-  ```json
-  {
-    "success": true,
-    "data": [
-      { "id": "st-1", "title": "Run automated tests & verify build", "completed": false, "estimated_minutes": 10 },
-      { "id": "st-2", "title": "Review environment configuration & secrets", "completed": false, "estimated_minutes": 5 },
-      { "id": "st-3", "title": "Deploy to production/staging server", "completed": false, "estimated_minutes": 15 },
-      { "id": "st-4", "title": "Perform post-deployment health check", "completed": false, "estimated_minutes": 10 }
-    ]
-  }
-  ```
-
-#### `POST /api/tasks/parse-nlp`
-Parse natural language text into task fields.
-- **Request Body:**
-  ```json
-  {
-    "text": "Finish presentation slides by tomorrow !urgent #Work"
-  }
-  ```
-
----
-
-### 4. Metrics & Activity Endpoints
-
-#### `GET /api/tasks/stats`
-Returns aggregated productivity metrics, completion rates, and breakdown charts.
-
-#### `GET /api/tasks/activity`
-Returns the recent 50 activity audit logs.
+| Parameter | Type | Allowed Values |
+|---|---|---|
+| `search` | `string` | Free text keyword match on title or description |
+| `status` | `string` | `'all'`, `'pending'`, `'in_progress'`, `'completed'` |
+| `priority` | `string` | `'all'`, `'low'`, `'medium'`, `'high'`, `'urgent'` |
+| `timeframe` | `string` | `'all'`, `'today'`, `'upcoming'`, `'overdue'` |
+| `sortBy` | `string` | `'created_at'`, `'due_date'`, `'priority'`, `'title'` |
+| `order` | `string` | `'asc'`, `'desc'` |

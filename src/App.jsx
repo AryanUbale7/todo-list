@@ -1,31 +1,34 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import confetti from 'canvas-confetti';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { TodoProvider, useTodoContext } from './context/TodoContext';
 import Header from './components/Header';
 import GamificationBar from './components/GamificationBar';
-import StatsDashboard from './components/StatsDashboard';
 import TaskStats from './components/TaskStats';
 import FilterBar from './components/FilterBar';
-import TaskFilter from './components/TaskFilter';
 import TodoInput from './components/TodoInput';
-import TaskForm from './components/TaskForm';
-import TodoList from './components/TodoList';
 import TaskList from './components/TaskList';
-import TaskItem from './components/TaskItem';
 import TaskModal from './components/TaskModal';
-import CategoryModal from './components/CategoryModal';
-import ShortcutsModal from './components/ShortcutsModal';
-import ActivityModal from './components/ActivityModal';
-import PomodoroTimer from './components/PomodoroTimer';
-import KanbanBoard from './components/KanbanBoard';
-import CalendarView from './components/CalendarView';
-import AnalyticsView from './components/AnalyticsView';
-import TrashView from './components/TrashView';
-import EmptyState from './components/EmptyState';
 import Toast from './components/Toast';
-import { api } from './services/api';
 import { Loader2, Plus } from 'lucide-react';
+
+// Code-splitting secondary heavy views & modals for optimal performance
+const KanbanBoard = lazy(() => import('./components/KanbanBoard'));
+const CalendarView = lazy(() => import('./components/CalendarView'));
+const AnalyticsView = lazy(() => import('./components/AnalyticsView'));
+const TrashView = lazy(() => import('./components/TrashView'));
+const PomodoroTimer = lazy(() => import('./components/PomodoroTimer'));
+const CategoryModal = lazy(() => import('./components/CategoryModal'));
+const ShortcutsModal = lazy(() => import('./components/ShortcutsModal'));
+const ActivityModal = lazy(() => import('./components/ActivityModal'));
+
+function ViewLoader() {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 min-h-[300px]" role="status" aria-label="Loading view">
+      <Loader2 className="w-8 h-8 text-brand-500 animate-spin mb-3" />
+      <span className="text-sm font-medium text-slate-500">Loading module...</span>
+    </div>
+  );
+}
 
 function TodoAppContent() {
   const {
@@ -164,7 +167,14 @@ function TodoAppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-      
+      {/* Skip to Main Content Accessibility Link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 z-50 px-4 py-2 bg-brand-600 text-white font-bold rounded-xl shadow-lg"
+      >
+        Skip to main content
+      </a>
+
       {/* Navigation Header */}
       <Header
         darkMode={darkMode}
@@ -186,183 +196,195 @@ function TodoAppContent() {
       />
 
       {/* Main Workspace Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main id="main-content" tabIndex="-1" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 outline-none">
         
         {/* Productivity & Gamification Streak */}
         <GamificationBar completedCount={stats.completed || 0} />
 
         {/* View Switcher Routing */}
-        {activeView === 'analytics' ? (
-          <AnalyticsView stats={stats} tasks={todos} />
-        ) : activeView === 'calendar' ? (
-          <CalendarView
-            tasks={todos}
-            onEditTask={(t) => {
-              setTaskToEdit(t);
-              setIsTaskModalOpen(true);
-            }}
-            onOpenNewTaskForDate={(d) => {
-              setTaskToEdit({ due_date: d });
-              setIsTaskModalOpen(true);
-            }}
-          />
-        ) : activeView === 'trash' ? (
-          <TrashView
-            trashTasks={trashTodos}
-            onRestoreTask={restoreTodo}
-            onPermanentDelete={permanentDeleteTodo}
-            onClearTrash={() => {
-              trashTodos.forEach(t => permanentDeleteTodo(t.id));
-            }}
-          />
-        ) : (
-          <>
-            {/* Task Statistics Summary */}
-            <TaskStats
-              stats={stats}
-              currentFilter={filter}
-              onSelectFilter={(newFilter) => setFilter((prev) => ({ ...prev, ...newFilter }))}
-            />
-
-            {/* Quick Inline Task Creation */}
-            <TodoInput
-              onAddTodo={addTodo}
-              onOpenDetailedModal={() => {
-                setTaskToEdit(null);
+        <Suspense fallback={<ViewLoader />}>
+          {activeView === 'analytics' ? (
+            <AnalyticsView stats={stats} tasks={todos} />
+          ) : activeView === 'calendar' ? (
+            <CalendarView
+              tasks={todos}
+              onEditTask={(t) => {
+                setTaskToEdit(t);
+                setIsTaskModalOpen(true);
+              }}
+              onOpenNewTaskForDate={(d) => {
+                setTaskToEdit({ due_date: d });
                 setIsTaskModalOpen(true);
               }}
             />
-
-            {/* Task Search & Filter Controls */}
-            <FilterBar
-              filter={filter}
-              setFilter={setFilter}
-              categories={categories}
-              onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
+          ) : activeView === 'trash' ? (
+            <TrashView
+              trashTasks={trashTodos}
+              onRestoreTask={restoreTodo}
+              onPermanentDelete={permanentDeleteTodo}
+              onClearTrash={() => {
+                trashTodos.forEach((t) => permanentDeleteTodo(t.id));
+              }}
             />
+          ) : (
+            <>
+              {/* Task Statistics Summary */}
+              <TaskStats
+                stats={stats}
+                currentFilter={filter}
+                onSelectFilter={(newFilter) => setFilter((prev) => ({ ...prev, ...newFilter }))}
+              />
 
-            {/* Main View: Kanban or Task List */}
-            {activeView === 'kanban' ? (
-              <KanbanBoard
-                tasks={todos}
-                onToggleStatus={toggleTodo}
-                onEditTask={(t) => {
-                  setTaskToEdit(t);
-                  setIsTaskModalOpen(true);
-                }}
-                onDeleteTask={deleteTodo}
-                onUpdateSubtasks={(id, subtasks) => updateTodo(id, { subtasks })}
-                onUpdateTaskStatus={(id, status) => {
-                  updateTodo(id, { status });
-                  if (status === 'completed') triggerConfetti();
-                }}
-                onOpenNewTask={() => {
+              {/* Quick Inline Task Creation */}
+              <TodoInput
+                onAddTodo={addTodo}
+                onOpenDetailedModal={() => {
                   setTaskToEdit(null);
                   setIsTaskModalOpen(true);
                 }}
               />
-            ) : (
-              /* Task List View */
-              <section className="space-y-3" role="region" aria-label="Task List View">
-                <div className="flex items-center justify-between px-1 mb-2">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      Tasks ({todos.length})
-                    </h2>
-                    {stats.completed > 0 && (
-                      <button
-                        onClick={clearCompleted}
-                        className="text-xs text-rose-500 hover:underline font-semibold"
-                        aria-label="Clear all completed tasks"
-                      >
-                        Clear Completed ({stats.completed})
-                      </button>
+
+              {/* Task Search & Filter Controls */}
+              <FilterBar
+                filter={filter}
+                setFilter={setFilter}
+                categories={categories}
+                onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
+              />
+
+              {/* Main View: Kanban or Task List */}
+              {activeView === 'kanban' ? (
+                <KanbanBoard
+                  tasks={todos}
+                  onToggleStatus={toggleTodo}
+                  onEditTask={(t) => {
+                    setTaskToEdit(t);
+                    setIsTaskModalOpen(true);
+                  }}
+                  onDeleteTask={deleteTodo}
+                  onUpdateSubtasks={(id, subtasks) => updateTodo(id, { subtasks })}
+                  onUpdateTaskStatus={(id, status) => {
+                    updateTodo(id, { status });
+                    if (status === 'completed') triggerConfetti();
+                  }}
+                  onOpenNewTask={() => {
+                    setTaskToEdit(null);
+                    setIsTaskModalOpen(true);
+                  }}
+                />
+              ) : (
+                /* Task List View */
+                <section className="space-y-3" role="region" aria-label="Task List View">
+                  <div className="flex items-center justify-between px-1 mb-2">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Tasks ({todos.length})
+                      </h2>
+                      {stats.completed > 0 && (
+                        <button
+                          onClick={clearCompleted}
+                          className="text-xs text-rose-500 hover:underline font-semibold focus-visible:ring-2 focus-visible:ring-rose-500 rounded px-1"
+                          aria-label="Clear all completed tasks"
+                        >
+                          Clear Completed ({stats.completed})
+                        </button>
+                      )}
+                    </div>
+
+                    {loading && (
+                      <span className="flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-400 font-medium" role="status" aria-live="polite">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Syncing...
+                      </span>
                     )}
                   </div>
 
-                  {loading && (
-                    <span className="flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-400 font-medium">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Syncing...
-                    </span>
+                  {loading && todos.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20" role="status">
+                      <Loader2 className="w-8 h-8 text-brand-500 animate-spin mb-3" />
+                      <p className="text-sm text-slate-500">Loading your tasks...</p>
+                    </div>
+                  ) : (
+                    <TaskList
+                      todos={todos}
+                      onToggle={toggleTodo}
+                      onEdit={(t) => {
+                        setTaskToEdit(t);
+                        setIsTaskModalOpen(true);
+                      }}
+                      onDelete={deleteTodo}
+                      onUpdateSubtasks={(id, subtasks) => updateTodo(id, { subtasks })}
+                      onReorder={reorderTodos}
+                      isFiltered={isFiltered}
+                      onResetFilter={() => {
+                        setSearchQuery('');
+                        setFilter({
+                          status: 'all',
+                          categoryId: 'all',
+                          priority: 'all',
+                          timeframe: 'all',
+                          sortBy: 'created_at',
+                          order: 'desc'
+                        });
+                      }}
+                      onOpenNewTodo={() => {
+                        setTaskToEdit(null);
+                        setIsTaskModalOpen(true);
+                      }}
+                    />
                   )}
-                </div>
-
-                {loading && todos.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 text-brand-500 animate-spin mb-3" />
-                    <p className="text-sm text-slate-500">Loading your tasks...</p>
-                  </div>
-                ) : (
-                  <TaskList
-                    todos={todos}
-                    onToggle={toggleTodo}
-                    onEdit={(t) => {
-                      setTaskToEdit(t);
-                      setIsTaskModalOpen(true);
-                    }}
-                    onDelete={deleteTodo}
-                    onUpdateSubtasks={(id, subtasks) => updateTodo(id, { subtasks })}
-                    onReorder={reorderTodos}
-                    isFiltered={isFiltered}
-                    onResetFilter={() => {
-                      setSearchQuery('');
-                      setFilter({
-                        status: 'all',
-                        categoryId: 'all',
-                        priority: 'all',
-                        timeframe: 'all',
-                        sortBy: 'created_at',
-                        order: 'desc'
-                      });
-                    }}
-                    onOpenNewTodo={() => {
-                      setTaskToEdit(null);
-                      setIsTaskModalOpen(true);
-                    }}
-                  />
-                )}
-              </section>
-            )}
-          </>
-        )}
+                </section>
+              )}
+            </>
+          )}
+        </Suspense>
 
       </main>
 
       {/* Modals & Dialogs */}
-      <TaskModal
-        isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
-        onSave={handleSaveTodo}
-        taskToEdit={taskToEdit}
-        categories={categories}
-        onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
-      />
+      <Suspense fallback={null}>
+        <TaskModal
+          isOpen={isTaskModalOpen}
+          onClose={() => setIsTaskModalOpen(false)}
+          onSave={handleSaveTodo}
+          taskToEdit={taskToEdit}
+          categories={categories}
+          onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
+        />
 
-      <CategoryModal
-        isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        categories={categories}
-        onCreateCategory={createCategory}
-        onDeleteCategory={deleteCategory}
-      />
+        {isCategoryModalOpen && (
+          <CategoryModal
+            isOpen={isCategoryModalOpen}
+            onClose={() => setIsCategoryModalOpen(false)}
+            categories={categories}
+            onCreateCategory={createCategory}
+            deleteCategory={deleteCategory}
+          />
+        )}
 
-      <ShortcutsModal
-        isOpen={isShortcutsModalOpen}
-        onClose={() => setIsShortcutsModalOpen(false)}
-      />
+        {isShortcutsModalOpen && (
+          <ShortcutsModal
+            isOpen={isShortcutsModalOpen}
+            onClose={() => setIsShortcutsModalOpen(false)}
+          />
+        )}
 
-      <ActivityModal
-        isOpen={isActivityModalOpen}
-        onClose={() => setIsActivityModalOpen(false)}
-        logs={activityLogs}
-      />
+        {isActivityModalOpen && (
+          <ActivityModal
+            isOpen={isActivityModalOpen}
+            onClose={() => setIsActivityModalOpen(false)}
+            logs={activityLogs}
+          />
+        )}
 
-      <PomodoroTimer
-        isOpen={isTimerOpen}
-        onClose={() => setIsTimerOpen(false)}
-        tasks={todos}
-        onLogTime={handleLogFocusTime}
-      />
+        {isTimerOpen && (
+          <PomodoroTimer
+            isOpen={isTimerOpen}
+            onClose={() => setIsTimerOpen(false)}
+            tasks={todos}
+            onLogTime={handleLogFocusTime}
+          />
+        )}
+      </Suspense>
 
       {/* Floating Action Button */}
       <button
@@ -370,7 +392,7 @@ function TodoAppContent() {
           setTaskToEdit(null);
           setIsTaskModalOpen(true);
         }}
-        className="sm:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-brand-600 to-indigo-600 text-white shadow-xl shadow-brand-500/40 flex items-center justify-center active:scale-95"
+        className="sm:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-brand-600 to-indigo-600 text-white shadow-xl shadow-brand-500/40 flex items-center justify-center active:scale-95 focus-visible:ring-4 focus-visible:ring-brand-400"
         title="Add Task"
         aria-label="Add Task"
       >

@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import {
   Check,
   Calendar,
-  Clock,
   ChevronDown,
   ChevronUp,
   Edit3,
@@ -11,8 +10,13 @@ import {
   GripVertical
 } from 'lucide-react';
 import { renderCategoryIcon } from '../utils/iconMap';
+import { formatDueDate } from '../utils/formatters';
 
-export default function TodoItem({
+/**
+ * TodoItem Component
+ * Drag-and-drop interactive task card with full WCAG 2.1 AA accessibility support.
+ */
+function TodoItem({
   todo,
   index,
   onToggle,
@@ -29,43 +33,6 @@ export default function TodoItem({
   const isCompleted = todo.status === 'completed' || todo.completed === true;
   const subtasks = todo.subtasks || [];
   const completedSubtasksCount = subtasks.filter((st) => st.completed).length;
-
-  // Format Due Date
-  const formatDueDate = (dateStr) => {
-    if (!dateStr) return null;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const dueDate = new Date(year, month - 1, day);
-    dueDate.setHours(0, 0, 0, 0);
-
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) {
-      return {
-        text: `Overdue by ${Math.abs(diffDays)}d`,
-        className: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-900'
-      };
-    } else if (diffDays === 0) {
-      return {
-        text: 'Due Today',
-        className: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/60 border-violet-200 dark:border-violet-900'
-      };
-    } else if (diffDays === 1) {
-      return {
-        text: 'Due Tomorrow',
-        className: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-900'
-      };
-    } else {
-      return {
-        text: dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        className: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-      };
-    }
-  };
 
   const dueInfo = formatDueDate(todo.due_date);
 
@@ -94,6 +61,7 @@ export default function TodoItem({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       role="listitem"
+      aria-label={`To-do item: ${todo.title}`}
       className={`group rounded-2xl border transition-all duration-200 cursor-grab active:cursor-grabbing ${
         isCompleted
           ? 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800/80 opacity-75'
@@ -103,16 +71,21 @@ export default function TodoItem({
       <div className="p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
         
         {/* Drag Handle */}
-        <div className="mt-1 text-slate-300 dark:text-slate-700 group-hover:text-slate-400 dark:group-hover:text-slate-500 cursor-grab">
+        <div
+          className="mt-1 text-slate-300 dark:text-slate-700 group-hover:text-slate-400 dark:group-hover:text-slate-500 cursor-grab"
+          aria-hidden="true"
+        >
           <GripVertical className="w-4 h-4" />
         </div>
 
         {/* Complete Checkbox */}
         <button
           type="button"
-          onClick={() => onToggle(todo.id)}
-          aria-label={isCompleted ? `Mark ${todo.title} as incomplete` : `Mark ${todo.title} as completed`}
-          className={`mt-0.5 shrink-0 w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
+          onClick={() => onToggle && onToggle(todo.id)}
+          role="checkbox"
+          aria-checked={isCompleted}
+          aria-label={isCompleted ? `Mark "${todo.title}" as incomplete` : `Mark "${todo.title}" as completed`}
+          className={`mt-0.5 shrink-0 w-6 h-6 rounded-lg border flex items-center justify-center transition-all focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none ${
             isCompleted
               ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm'
               : 'border-slate-300 dark:border-slate-600 hover:border-brand-500 dark:hover:border-brand-400 bg-transparent'
@@ -125,8 +98,11 @@ export default function TodoItem({
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <h3
-              onClick={() => onEdit(todo)}
-              className={`text-base font-semibold cursor-pointer truncate hover:text-brand-600 dark:hover:text-brand-400 transition-colors ${
+              onClick={() => onEdit && onEdit(todo)}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onEdit && onEdit(todo)}
+              tabIndex="0"
+              role="button"
+              className={`text-base font-semibold cursor-pointer truncate hover:text-brand-600 dark:hover:text-brand-400 transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none rounded ${
                 isCompleted
                   ? 'line-through text-slate-400 dark:text-slate-500'
                   : 'text-slate-900 dark:text-white'
@@ -177,7 +153,7 @@ export default function TodoItem({
               <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-[11px] font-medium transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-500"
                 aria-expanded={expanded}
               >
                 <span>{completedSubtasksCount}/{subtasks.length} subtasks</span>
@@ -190,16 +166,16 @@ export default function TodoItem({
         {/* Action Controls */}
         <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={() => onEdit(todo)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => onEdit && onEdit(todo)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-visible:ring-2 focus-visible:ring-brand-500"
             title="Edit Todo"
             aria-label={`Edit ${todo.title}`}
           >
             <Edit3 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => onDelete(todo.id)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+            onClick={() => onDelete && onDelete(todo.id)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors focus-visible:ring-2 focus-visible:ring-rose-500"
             title="Delete Todo"
             aria-label={`Delete ${todo.title}`}
           >
@@ -217,7 +193,11 @@ export default function TodoItem({
               <div
                 key={st.id}
                 onClick={(e) => handleToggleSubtask(st.id, e)}
-                className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 cursor-pointer hover:text-slate-900 dark:hover:text-white"
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleToggleSubtask(st.id, e)}
+                tabIndex="0"
+                role="checkbox"
+                aria-checked={st.completed}
+                className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 cursor-pointer hover:text-slate-900 dark:hover:text-white focus-visible:ring-2 focus-visible:ring-brand-500 rounded p-1"
               >
                 <div
                   className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
@@ -239,3 +219,5 @@ export default function TodoItem({
     </div>
   );
 }
+
+export default memo(TodoItem);
